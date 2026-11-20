@@ -950,7 +950,7 @@ function openManual(payload = {}) {
         if (/^https?:\/\//i.test(url)) shell.openExternal(url);
       });
     }
-    manualWindow.setTitle(`ApkStart 使用手册 · ${target.title}`);
+    manualWindow.setTitle(L.tr(`ApkStart 使用手册 · ${target.title}`));
     manualWindow.loadFile(path.join(__dirname, 'ui', 'manual.html'), { hash: target.anchor });
     manualWindow.once('ready-to-show', () => {
       if (!manualWindow || manualWindow.isDestroyed()) return;
@@ -1950,11 +1950,11 @@ function registerIpc() {
 
   ipcMain.handle('drivers:import', async () => {
     const drv = require('./core/drivers');
-    const r = await dialog.showOpenDialog(mainWindow, {
+    const r = await dialog.showOpenDialog(mainWindow, L.dialog({
       title: '选择驱动文件（.json）',
       filters: [{ name: '驱动 JSON', extensions: ['json'] }],
       properties: ['openFile'],
-    });
+    }));
     if (r.canceled || !r.filePaths.length) return { ok: false, canceled: true };
     const out = drv.importDriver(r.filePaths[0], drv.userDir(store));
     if (out.ok) {
@@ -1970,11 +1970,11 @@ function registerIpc() {
     const drv = require('./core/drivers');
     const overview = await driverOverview();
     const tpl = drv.templateFromHost(overview.host);
-    const r = await dialog.showSaveDialog(mainWindow, {
+    const r = await dialog.showSaveDialog(mainWindow, L.dialog({
       title: '导出本机驱动模板',
       defaultPath: path.join(drv.userDir(store), `${tpl.id}.json`),
       filters: [{ name: '驱动 JSON', extensions: ['json'] }],
-    });
+    }));
     if (r.canceled || !r.filePath) return { ok: false, canceled: true };
     fs.mkdirSync(path.dirname(r.filePath), { recursive: true });
     fs.writeFileSync(r.filePath, `${JSON.stringify(tpl, null, 2)}\n`, 'utf8');

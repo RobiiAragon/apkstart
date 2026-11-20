@@ -81,5 +81,12 @@ test('托盘菜单与对话框：翻译文案，跳过应用名', () => {
   eq(d.defaultId, 1);
 });
 
+test('0.6 新增文案：设置分类、托盘、体检与开机动画', () => {
+  eq(T('诊断与修复'), 'Diagnóstico y reparación');
+  eq(T('关闭当前应用（抖音）'), 'Cerrar la app actual (抖音)', '应用名保持原样');
+  eq(T('每 5 分钟检测一次'), 'Comprobar cada 5 minutos');
+  eq(T('Windows 上的安卓应用运行器'), 'Ejecutor de apps Android para Windows');
+});
+
 console.log(`\n结果：${passed} 通过，${failed} 失败\n`);
 process.exit(failed ? 1 : 0);
