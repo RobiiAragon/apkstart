@@ -10,6 +10,7 @@
 [简体中文](README.md) | **Español**
 
 **Ejecutor de apps Android para Windows: instala y usa apps Android como si fueran programas nativos de Windows.**
+Nota: es una versión temprana, un proyecto personal del autor hecho en sus ratos libres después del trabajo y los fines de semana. Es de código abierto y gratuito, sin anuncios; todavía no es muy cómodo de usar y nunca se ha promocionado con cuentas de marketing.
 
 - 🖱️ **Doble clic en un .apk y se instala**: con la asociación de archivos .apk registrada, haz doble clic en un APK en el Explorador y se analiza → instala → crea su icono en el escritorio, sin abrir ninguna interfaz de emulador.
 - 🧩 **Un icono de escritorio por app**: el icono se extrae sin conexión del propio APK y se convierte a ICO de varios tamaños; doble clic en el icono = abre directamente esa app, igual que un programa nativo de Windows.
@@ -46,10 +47,39 @@ Las dos fuentes tienen el mismo contenido; desde China se recomienda Gitee:
 - GitHub: [github.com/RoutineMiku/apkstart/releases](https://github.com/RoutineMiku/apkstart/releases)
 - Gitee: [gitee.com/daily-miku/apkstart/releases](https://gitee.com/daily-miku/apkstart/releases) (mucho más rápido desde China)
 
-Paquetes:
+Paquetes (tres formatos, con el mismo contenido y número de versión):
 
-- **`ApkStart-v*-Setup.exe`** (~1.3 GB): **un solo EXE con todo el runtime** (adb / Android Emulator / imagen del sistema). En el primer inicio tras instalarlo expande la imagen en tu carpeta de usuario y **después ya no descarga nada de internet**. Se instala en la carpeta del usuario actual y no necesita permisos de administrador.
-- También hay una versión ligera, `ApkStart-v*-win64-portable.zip` (**95 MB**, ~226 MB descomprimida): descarga el runtime en segundo plano la primera vez que se abre. La fuente de esa descarga es **la propia GitHub Release de este proyecto** (paquete completo `ApkStart-runtime-*.zip`), no dl.google.com; solo si no consigue el paquete completo recurre a las fuentes oficiales.
+| Formato | Archivo | Cuándo elegirlo |
+|---|---|---|
+| Versión de la Store | `ApkStart_<versión de cuatro partes>_x64.msix` | Se instala desde Microsoft Store. Trae el runtime completo y no necesita internet tras instalar; las actualizaciones las gestiona la Store |
+| Portable completa | `ApkStart-v*-win64-full.zip` (~830 MB, ~1.3 GB descomprimida) | **Si no quieres instalar ni esperar descargas**: descomprimir y usar; el runtime (emulador + imagen del sistema) va dentro |
+| Instalable | `ApkStart-v*-Setup.exe` (~1.3 GB) | Si quieres accesos directos en el escritorio / menú Inicio y entrada de desinstalación |
+| Portable ligera | `ApkStart-v*-win64-portable.zip` (96 MiB, ~227 MB descomprimida) | Solo para probar; descarga el runtime en el primer inicio |
+
+> El `ApkStart.exe` de todos los formatos lleva **icono de la marca + recursos de versión** (FileDescription = `ApkStart 安卓应用运行器`,
+> CompanyName = `RoutineMiku`, versión sincronizada con `package.json`), en lugar del icono predeterminado de Electron y la versión `33.x`.
+> Para empaquetar tú mismo desde el código: `npm run pack` (ligera) / `npm run pack:full` (completa) / `npm run build:msix` (paquete de la Store).
+
+### Cómo se consigue que la imagen ocupe toda la pantalla
+
+La **orientación física del panel** del emulador (`hw.lcd.width/height`) es la forma real de la imagen. Si no coincide con la
+`screenOrientation` que declara la app, Android solo le da una franja central tipo buzón, con bordes negros; ni cambiar el tamaño de la ventana,
+ni `wm size`, ni el estilo de letterbox lo llenan (se probaron todas esas combinaciones; ver los comentarios de `src/core/apk.js`).
+
+Por eso ApkStart **analiza `AndroidManifest.xml` sin conexión al instalar el APK** para saber si la app es de forma natural horizontal o vertical
+(con más peso para la Activity de inicio; las que son todo `sensor` / `fullSensor` vuelven a preguntar a Android el valor real tras la primera ejecución), lo guarda en
+`apps.json` y al iniciar elige el panel según eso:
+
+- Apps verticales como Hongguo → panel vertical 720×1280, derecho, a pantalla completa, con density 190 (sw606dp) que además da el diseño de tablet;
+- Apps horizontales como Molu → panel horizontal 1280×720, derecho, a pantalla completa.
+
+Solo se reinicia el runtime la vez en que «la orientación del panel no coincide con la de la app» (unos 40 segundos; la barra de título lo avisa);
+después las apps con la misma orientación abren al instante. El botón de rotación de la barra de título **recuerda** la orientación de esa app (las demás no se ven afectadas),
+y en Ajustes → Ventana de la app → Orientación de pantalla se puede cambiar a «Horizontal forzado / Vertical forzado».
+
+El diseño lo decide la «densidad lógica»: 720 de ancho a 190 dpi son **606 dp**, justo por encima del umbral de tablet de 600 dp de Android;
+la página de episodios a dos columnas de Hongguo y los ajustes en paneles solo aparecen con esa densidad (los 320 dpi predeterminados de la imagen dan solo 360 dp, diseño de móvil).
+Es el interruptor «Diseño de tablet» de los ajustes, activado por defecto; al desactivarlo vuelve el diseño de móvil.
 
 ### Actualización en línea (elige la fuente más rápida)
 
@@ -83,6 +113,41 @@ Los dos repositorios son públicos y la lista de releases de Gitee se puede leer
 - La ventana de la app se renderiza de forma nativa (no es una proyección): **pantalla completa** ocupa todo el alto, centrada, sin deformar la proporción del móvil; el **modo ventana** se mantiene en vertical, se puede mover y redimensionar, y recuerda el tamaño de cada app. Cambia en cualquier momento con `F11` o con clic derecho en la bandeja.
 - Tras instalar se conceden automáticamente los permisos de runtime que pide la app, sin quedarse atascado en el diálogo de permisos; si la app se cierra sola, se reintenta automáticamente y, si hace falta, se restablecen sus datos antes de volver a abrirla.
 - **La red usa directamente la de tu equipo**: Android sale por el NAT en modo usuario de QEMU, reutilizando la tarjeta de red física del equipo, y **no crea ninguna tarjeta ni conmutador de red virtual en Windows** (no hay que instalar controladores ni aparece un adaptador de red extra). No hace falta descargar nada ni cambiar ningún ajuste de red.
+
+## Página de ajustes: por categorías y con búsqueda
+
+Como cada vez hay más ajustes, desde la 0.6.0 la página se divide en ocho categorías según su uso, con una columna de navegación a la izquierda:
+
+| Categoría | Qué contiene |
+|---|---|
+| Uso habitual e instalación | Runtime y entorno, hacerlo todo con un clic, inicio con Windows, uso de disco y limpieza |
+| Pantalla y ventanas | Modo de pantalla, pantalla completa automática, orientación, rotación automática de la imagen, diseño de tablet, modo de ventana, ajustes del sistema Android |
+| Controles y entrada | Botones del ratón, mapeo de teclado (mando) |
+| Rendimiento y recursos | Política de recursos, calidad de imagen, partición de datos, idioma del sistema, método de entrada chino, instantáneas, precalentamiento, parámetros avanzados |
+| Red y descargas | Actualizaciones y fuentes de descarga, espejos públicos de aceleración, hilos de descarga |
+| Diagnóstico y reparación | Chequeo del equipo · configuración automática, drivers · parches de compatibilidad, detección automática · diagnóstico inteligente |
+| Integración y archivos | Escritorio y apps, compartir archivos, integración con el sistema |
+| Actualizaciones y acerca de | Actualización del programa, acerca de |
+
+Arriba hay además un buscador: escribe palabras como «horizontal», «memoria» o «proxy» y los resultados se muestran **entre categorías**,
+sin el problema de «lo encontró pero no lo veo». Se recuerda la última categoría visitada.
+
+## Detección automática (debug automático)
+
+Ajustes → **Diagnóstico y reparación** → «Detección automática · diagnóstico inteligente». Revisa el equipo periódicamente en segundo plano y lista los problemas por categoría:
+
+- **Runtime**: la causa real del último fallo de inicio, arranque atascado, archivos de bloqueo residuales, procesos de emulador huérfanos, instantáneas vacías, sin aceleración por hardware
+- **Conexión del dispositivo**: adb sin autorizar (Android mostró «¿Permitir la depuración USB?» y nadie pulsó), offline, el runtime funciona pero adb no ve el dispositivo
+- **Almacenamiento**: espacio en disco, partición de datos configurada distinta de la real (el disco diferencial bloquea la ampliación), carpeta compartida sin escritura
+- **Ajustes**: la política de orientación choca con el panel físico, la pantalla completa automática no funciona con ventana nativa
+- **Red / registros**: Android sin red, fuentes de descarga caídas, errores en los registros recientes
+
+Cada problema se puede resolver con un clic (reiniciar el runtime, borrar bloqueos, limpiar procesos huérfanos, invalidar la instantánea, liberar disco, restablecer la red de Android…),
+y después se vuelve a comprobar automáticamente.
+
+Dos principios: **un fallo al detectar no se trata como problema** (si no puede leer el estado dice «no se sabe», nunca inventa),
+y **solo avisa una vez cuando aparece un problema nuevo** (los antiguos no vuelven a molestar; si se recuperan solo se anota en silencio).
+Por defecto comprueba cada 10 minutos; en la misma página se puede desactivar o cambiar el intervalo.
 
 ## Compilar desde el código fuente
 
@@ -151,8 +216,14 @@ En el primer uso, la página «Runtime» te guía para completar este despliegue
 - Memoria y núcleos se deducen de la memoria física (2–4 GB / 2–4 núcleos); la partición de datos baja de 16 GB a 4 GB; el puerto se elige dinámicamente entre los libres, las rutas en chino se convierten a rutas cortas y los archivos de bloqueo del AVD se limpian solos.
 - La causa de cada fallo se explica en lenguaje claro (en chino o en español) junto con una sugerencia para arreglarlo; en Ajustes puedes «Exportar informe de diagnóstico».
 - Los archivos grandes se descargan por defecto con **8 hilos por bloques + reanudación**; las fuentes que no admiten Range pasan automáticamente a una sola conexión.
-- Los usuarios avanzados también pueden cambiar en Ajustes a «Conectar a un runtime existente» (reutilizando el puerto adb de WSA, etc.), pero es solo una opción, no una dependencia.
-- Ruta avanzada: también puedes «Conectar a un runtime existente» en Ajustes y reutilizar el puerto adb de otro emulador que ya tengas funcionando (WSA / MuMu, etc.).
+- **Solo usa su propio runtime, sin relación con otros emuladores**: ApkStart no detecta, no toma el control ni maneja MuMu / LDPlayer / BlueStacks / WSA instalados en tu equipo;
+  que estén o no instalados, cómo se actualicen o qué puertos usen no afecta a ApkStart. Los ajustes ya no ofrecen «cambiar de motor».
+- **Chequeo del equipo · configuración automática**: tras instalar revisa la virtualización de la CPU (VT-x/SVM), la Plataforma del hipervisor de Windows,
+  la tarjeta gráfica y su VRAM, la memoria y la versión del sistema; lo que se puede cambiar automáticamente (memoria / núcleos / calidad / backend de renderizado) se escribe en los ajustes y se guarda como driver,
+  lo que requiere administrador tiene un botón y lo que solo se cambia en la BIOS te explica cómo. Ver [docs/preflight.md](docs/preflight.md).
+- **Extensión de drivers (parches de compatibilidad)**: si un equipo necesita cambiar parámetros de arranque para funcionar (tarjeta gráfica antigua con GLES bajo, sin aceleración por hardware,
+  un controlador que falla con renderizado por hardware), puedes escribir un parche JSON que declare a qué equipos se aplica y qué parámetros cambia.
+  En los ajustes se pueden importar, activar y exportar una plantilla del equipo; los parches solo cambian opciones de arranque de una lista permitida y no ejecutan código. Ver [docs/drivers.md](docs/drivers.md).
 
 **Ejecución tipo contenedor de bajo coste**
 
@@ -227,6 +298,60 @@ todo el flujo instalar → iniciar en ventana independiente → confirmar primer
 | Hongguo (microdramas gratis) en modo de compatibilidad (Android 14 · aceleración por hardware AEHD) |
 |:---:|
 | ![Hongguo ejecutándose en modo de compatibilidad en ApkStart](docs/images/compat-hongguo-playing.png) |
+
+### Qué hacer si aparece «Aceleración por hardware no activada»
+
+En Windows el emulador de Android solo tiene dos vías de aceleración:
+
+| Vía | Qué es | Cuándo pide administrador | ¿Hay que reiniciar? |
+|---|---|---|---|
+| **WHPX** | La característica de Windows «Plataforma del hipervisor de Windows» | Al activarla | Sí |
+| **AEHD** | El controlador de kernel de Google | Al instalarlo | No |
+
+- **Versión instalable / portable**: Ajustes → Autodiagnóstico del entorno → pulsa **Reparar** junto a «Aceleración por hardware no activada»; aparece un aviso UAC y se activa WHPX automáticamente. Si no se puede (el sistema no lo admite o pulsaste «No»), se instala automáticamente el controlador AEHD.
+- **Versión de Microsoft Store (MSIX)**: las apps de la Store **no pueden elevar privilegios**, así que «Reparar» abre directamente el diálogo «Activar o desactivar las características de Windows»; marca
+  **«Plataforma del hipervisor de Windows»** (HypervisorPlatform en inglés), acepta y **reinicia el PC** una vez.
+
+  También puedes hacerlo desde un PowerShell de administrador:
+
+  ```powershell
+  dism /online /enable-feature /featurename:HypervisorPlatform /all /norestart
+  dism /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart
+  ```
+
+> Ojo: no actives solo la «Plataforma de máquina virtual (VirtualMachinePlatform)»; esa es la que usa WSL2. El emulador necesita la
+> **«Plataforma del hipervisor de Windows (HypervisorPlatform)»**. Con solo la primera, `emulator -accel-check` seguirá diciendo que no está disponible.
+>
+> Sin aceleración también funciona (emulación por software), pero el arranque tarda minutos; para eso sirve el aviso de la app,
+> no es un fallo de inicio.
+
+### El icono del escritorio es incorrecto o sale el de ApkStart
+
+El acceso directo de cada app Android debería usar **su propio icono** (al instalar se extrae del APK y se guarda en
+`%APPDATA%\apkstart\icons\<paquete>.ico`). Si sale el botón verde de reproducir de ApkStart, o un icono en blanco:
+
+1. **Ajustes → Integración con el sistema → Recrear accesos directos** (reescribe los accesos directos del escritorio y del menú Inicio según la lista actual de apps,
+   arreglando a la vez el icono y la identidad en la barra de tareas);
+2. Si sigue mal, borra ese acceso directo y en ApkStart haz clic derecho en la app → recrear el acceso directo / reinstalarla.
+
+> Por qué se estropea: versiones antiguas, al reorganizar los iconos, apuntaron el `IconLocation` de esos `.lnk` al icono de ApkStart;
+> además, si mueves la carpeta de la versión portable a otro sitio, las rutas absolutas guardadas en los `.lnk` dejan de valer. Basta con recrearlos.
+>
+> De paso: cada acceso directo lleva su propio AppUserModelID,
+> así que al **anclarlo a la barra de tareas** el botón y el elemento anclado usan el mismo icono de la app y no se mezclan con ApkStart.
+
+### Por qué mi `adb devices` no ve este dispositivo Android
+
+El servidor adb de ApkStart funciona en un **puerto propio, 5044**, totalmente separado del adb de tu sistema (5037): así Android Studio / scrcpy no se pelean con él por el dispositivo y él no cierra por error los emuladores que abras a mano.
+
+Para conectarte desde la línea de comandos:
+
+```powershell
+$env:ANDROID_ADB_SERVER_PORT = 5044
+adb devices              # verás emulator-5554
+```
+
+⚠️ **No** hagas `adb connect` a mano contra el puerto `5555`: la imagen con Play muestra el diálogo del sistema «¿Permitir la depuración USB?», y aparece encima de la app Android en ejecución, como si el programa hubiera fallado.
 
 ## Sobre el autor
 
